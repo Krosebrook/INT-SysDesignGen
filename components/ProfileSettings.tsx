@@ -22,6 +22,11 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ user, onUpdate
       setError("Name is a mandatory field.");
       return;
     }
+
+    if (avatar && !authService.validateUrl(avatar)) {
+        setError("Please enter a valid URL for the avatar.");
+        return;
+    }
     
     setIsSaving(true);
     setError(null);
@@ -44,8 +49,11 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ user, onUpdate
 
   const handlePasswordReset = async () => {
     try {
-      await authService.resetPassword(user.email);
+      const token = await authService.requestPasswordReset(user.email);
       setResetRequested(true);
+      if (token) {
+        console.log(`Simulated Reset Token: ${token}`);
+      }
       setTimeout(() => setResetRequested(false), 5000);
     } catch (err) {
       setError("Failed to trigger security workflow.");
@@ -66,13 +74,14 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ user, onUpdate
             <div className="bg-gray-900 border border-gray-800 rounded-3xl p-8 text-center shadow-xl ring-1 ring-white/5">
                 <div className="relative inline-block mb-6">
                     <div className="w-28 h-28 md:w-32 md:h-32 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full mx-auto flex items-center justify-center text-4xl font-black text-white shadow-2xl overflow-hidden">
-                        {avatar ? (
+                        {avatar && authService.validateUrl(avatar) ? (
                           <img src={avatar} alt={name} className="w-full h-full object-cover" />
                         ) : (
                           name.charAt(0)
                         )}
                     </div>
-                    <button className="absolute bottom-1 right-1 bg-blue-600 hover:bg-blue-500 text-white p-2.5 rounded-full shadow-lg border-4 border-gray-900 transition-all hover:scale-110">
+                    {/* Placeholder for future file upload feature */}
+                    <button className="absolute bottom-1 right-1 bg-blue-600 hover:bg-blue-500 text-white p-2.5 rounded-full shadow-lg border-4 border-gray-900 transition-all hover:scale-110 cursor-default" title="Upload coming soon">
                         <Camera size={18} />
                     </button>
                 </div>
@@ -100,7 +109,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ user, onUpdate
                     </button>
                     {resetRequested && (
                       <p className="px-4 py-2 text-[10px] text-orange-400 bg-orange-950/20 rounded-lg border border-orange-900/30">
-                        Security verification link dispatched to your registered email.
+                        Check console/email for reset token (Simulation).
                       </p>
                     )}
                 </div>
@@ -149,9 +158,10 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ user, onUpdate
                             type="url" 
                             value={avatar}
                             onChange={(e) => setAvatar(e.target.value)}
-                            className="w-full bg-gray-950 border border-gray-700 rounded-xl py-3 px-4 text-gray-200 focus:ring-2 focus:ring-blue-500/50 outline-none text-sm transition-all" 
-                            placeholder="https://..."
+                            className="w-full bg-gray-950 border border-gray-700 rounded-xl py-3 px-4 text-gray-200 focus:ring-2 focus:ring-blue-500/50 outline-none text-sm transition-all placeholder:text-gray-700" 
+                            placeholder="https://example.com/avatar.png"
                         />
+                        <p className="text-[10px] text-gray-500 mt-2">Paste a secure HTTPS URL for your profile image.</p>
                     </div>
                     <div className="md:col-span-2">
                         <label className="block text-xs font-mono text-gray-500 mb-2 uppercase tracking-widest">Registered Email</label>

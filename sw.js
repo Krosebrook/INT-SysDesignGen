@@ -10,7 +10,8 @@ if (workbox) {
   const { CacheableResponsePlugin } = workbox.cacheableResponse;
   const { ExpirationPlugin } = workbox.expiration;
 
-  // Cache static assets with Stale-While-Revalidate
+  // 1. Static Assets: Stale-While-Revalidate
+  // Serves from cache for speed, updates in background.
   registerRoute(
     ({ request }) => 
       request.destination === 'style' || 
@@ -32,7 +33,7 @@ if (workbox) {
     })
   );
 
-  // App Shell / Navigation: Stale-While-Revalidate for fast loading
+  // 2. App Shell / Navigation: Stale-While-Revalidate
   registerRoute(
     ({ request }) => request.mode === 'navigate',
     new StaleWhileRevalidate({
@@ -45,8 +46,9 @@ if (workbox) {
     })
   );
 
-  // Dynamic Content: Network-First
-  // Only cache successful API responses. Exclude Auth/Moderation actions.
+  // 3. Dynamic API Content: Network-First
+  // Tries network to get fresh data. Falls back to cache if offline.
+  // ONLY caches successful responses (status 200).
   registerRoute(
     ({ url }) => url.pathname.startsWith('/api/v1/content'),
     new NetworkFirst({
@@ -63,13 +65,14 @@ if (workbox) {
     })
   );
 
-  // Auth and Moderation endpoints: Network Only (Security requirement)
+  // 4. Security Critical Endpoints: Network Only
+  // Authentication and Moderation actions must never be served from a stale cache.
   registerRoute(
     ({ url }) => url.pathname.includes('/auth') || url.pathname.includes('/moderation'),
     new NetworkOnly()
   );
 
-  // Offline Fallback
+  // Offline Fallback for Navigation
   setCatchHandler(({ event }) => {
     if (event.request.destination === 'document') {
       return caches.match('/index.html');

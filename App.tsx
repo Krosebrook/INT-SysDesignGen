@@ -12,7 +12,7 @@ import { ModerationQueue } from './components/ModerationQueue';
 import { ProfileSettings } from './components/ProfileSettings';
 import { Onboarding } from './components/Onboarding';
 import { DocumentationView } from './components/DocumentationView';
-import { Sparkles, Trash2, Cpu, Settings2, ShieldCheck, AlertCircle, HelpCircle, Menu, Loader2, BarChart3 } from 'lucide-react';
+import { Sparkles, Trash2, Cpu, Settings2, ShieldCheck, AlertCircle, HelpCircle, Menu, Loader2, BarChart3, Download } from 'lucide-react';
 
 const DEFAULT_FILTERS = Object.values(RealityFilterType);
 
@@ -21,6 +21,29 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('dashboard');
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
+
+  // PWA Install State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then((choiceResult: any) => {
+        if (choiceResult.outcome === 'accepted') {
+          setDeferredPrompt(null);
+        }
+      });
+    }
+  };
 
   // Architect State
   const [task, setTask] = useState('');
@@ -149,6 +172,16 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-3">
+             {deferredPrompt && (
+                <button 
+                  onClick={handleInstallClick}
+                  className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-full transition-all"
+                >
+                  <Download size={14} />
+                  Install App
+                </button>
+             )}
+
              <div className="hidden lg:flex items-center gap-4 mr-4">
                 {qualityGates.map(gate => (
                     <div key={gate.id} className="flex flex-col items-center">
@@ -168,6 +201,13 @@ const App: React.FC = () => {
              )}
           </div>
         </header>
+
+        {deferredPrompt && (
+           <div className="md:hidden bg-blue-600 text-white text-xs font-bold p-2 text-center flex items-center justify-center gap-2" onClick={handleInstallClick}>
+             <Download size={14} />
+             Tap to Install App for Offline Use
+           </div>
+        )}
 
         <main className="flex-1 overflow-auto bg-[#0b1121] custom-scrollbar safe-bottom">
           {currentView === 'dashboard' && <Dashboard user={user} />}

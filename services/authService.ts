@@ -3,6 +3,7 @@ import { UserProfile } from '../types';
 const STORAGE_KEY = 'se_architect_users';
 const SESSION_KEY = 'se_architect_session';
 const RATE_LIMIT_KEY = 'se_architect_rate_limits';
+const RESET_TOKEN_KEY = 'se_architect_reset_tokens';
 
 interface StoredUser extends UserProfile {
   passwordHash: string;
@@ -11,6 +12,11 @@ interface StoredUser extends UserProfile {
 interface RateLimitData {
   attempts: number;
   lastAttempt: number;
+}
+
+interface ResetTokenData {
+  token: string;
+  expires: number;
 }
 
 /**
@@ -28,6 +34,15 @@ export const authService = {
     return hasMinLength && hasUpper && hasLower && hasNumber && hasSpecial;
   },
 
+  validateUrl: (url: string) => {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
   checkRateLimit: (email: string): void => {
     const limits: Record<string, RateLimitData> = JSON.parse(localStorage.getItem(RATE_LIMIT_KEY) || '{}');
     const userLimit = limits[email];
@@ -36,7 +51,7 @@ export const authService = {
       const now = Date.now();
       const timeDiff = now - userLimit.lastAttempt;
       
-      // OWASP: 5 attempts max in 15 minutes
+      // OWASP: 5 attempts max in 15 minutes (Sliding Window / Fixed Window Approximation)
       if (userLimit.attempts >= 5 && timeDiff < 15 * 60 * 1000) {
         throw new Error("Too many authentication attempts. Please wait 15 minutes before trying again.");
       }
@@ -116,6 +131,12 @@ export const authService = {
 
   updateProfile: async (email: string, updates: Partial<UserProfile>): Promise<UserProfile> => {
     await new Promise(r => setTimeout(r, 500));
+    
+    // Validate Avatar URL if present
+    if (updates.avatar && !authService.validateUrl(updates.avatar)) {
+      throw new Error("Invalid Avatar URL format.");
+    }
+
     const users: StoredUser[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
     const userIndex = users.findIndex(u => u.email === email);
     
@@ -131,9 +152,69 @@ export const authService = {
     return updatedUser;
   },
 
-  resetPassword: async (email: string): Promise<void> => {
-    await new Promise(r => setTimeout(r, 1500));
-    // OWASP: Always return generic success to prevent account enumeration
-    console.log(`[SEC-AUDIT] Password reset requested for: ${email}. Workflow triggered.`);
+  /**
+   * Step 1: Request Password Reset
+   * Returns a token for simulation purposes (would be sent via email in prod)
+   */
+  requestPasswordReset: async (email: string): Promise<string | null> => {
+    await new Promise(r => setTimeout(r, 1000));
+    
+    const users: StoredUser[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const user = users.find(u => u.email === email);
+    
+    if (user) {
+      const token = Math.random().toString(36).substring(2, 10).toUpperCase();
+      const expires = Date.now() + 15 * 60 * 1000; // 15 minutes
+      
+      const tokens: Record<string, ResetTokenData> = JSON.parse(localStorage.getItem(RESET_TOKEN_KEY) || '{}');
+      tokens[email] = { token, expires };
+      localStorage.setItem(RESET_TOKEN_KEY, JSON.stringify(tokens));
+      
+      console.log(`[SIMULATION] Reset Token for ${email}: ${token}`);
+      return token; 
+    }
+    // Always return success/null to prevent enumeration, UI handles the message
+    return null;
+  },
+
+  /**
+   * Step 2: Confirm Password Reset
+   */
+  confirmPasswordReset: async (email: string, token: string, newPassword: string): Promise<void> => {
+    await new Promise(r => setTimeout(r, 1000));
+    
+    const tokens: Record<string, ResetTokenData> = JSON.parse(localStorage.getItem(RESET_TOKEN_KEY) || '{}');
+    const tokenData = tokens[email];
+
+    if (!tokenData) {
+      throw new Error("Invalid reset request.");
+    }
+
+    if (tokenData.token !== token) {
+      throw new Error("Invalid token.");
+    }
+
+    if (Date.now() > tokenData.expires) {
+      throw new Error("Token expired. Please request a new one.");
+    }
+
+    if (!authService.validatePassword(newPassword)) {
+      throw new Error("Password must meet complexity requirements (12+ chars, mixed case, numbers, special chars).");
+    }
+
+    // Update User
+    const users: StoredUser[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const userIndex = users.findIndex(u => u.email === email);
+    
+    if (userIndex !== -1) {
+      users[userIndex].passwordHash = btoa(newPassword);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+      
+      // Cleanup
+      delete tokens[email];
+      localStorage.setItem(RESET_TOKEN_KEY, JSON.stringify(tokens));
+    } else {
+      throw new Error("User record not found.");
+    }
   }
 };

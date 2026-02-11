@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
 import { UserProfile } from '../types';
 import { authService } from '../services/authService';
-import { Lock, Mail, ArrowRight, ShieldCheck, User, RefreshCw, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Lock, Mail, ArrowRight, ShieldCheck, User, RefreshCw, Eye, EyeOff, AlertCircle, Key } from 'lucide-react';
 
 interface LoginScreenProps {
   onLogin: (user: UserProfile) => void;
 }
 
-type AuthMode = 'signin' | 'signup' | 'forgot';
+type AuthMode = 'signin' | 'signup' | 'forgot' | 'reset';
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   const [mode, setMode] = useState<AuthMode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [resetToken, setResetToken] = useState('');
   const [name, setName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -30,8 +32,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         throw new Error("Please enter a valid work email address.");
       }
 
-      if (mode !== 'forgot' && !authService.validatePassword(password)) {
-        throw new Error("Password must be at least 8 characters long.");
+      // Password Validation for Sign Up and Reset
+      if ((mode === 'signup' || mode === 'reset') && !authService.validatePassword(mode === 'reset' ? newPassword : password)) {
+        throw new Error("Password must be 12+ chars with uppercase, lowercase, numbers, and symbols.");
       }
 
       if (mode === 'signup') {
@@ -40,10 +43,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
       } else if (mode === 'signin') {
         const user = await authService.signIn(email, password);
         onLogin(user);
-      } else {
-        await authService.resetPassword(email);
-        setMessage('If an account exists for this email, you will receive a reset link shortly.');
-        setTimeout(() => setMode('signin'), 3000);
+      } else if (mode === 'forgot') {
+        const token = await authService.requestPasswordReset(email);
+        setMessage(`If an account exists, a reset code has been sent. (Simulated Code: ${token || 'HIDDEN'})`);
+        // In a real app, we wouldn't show the token, but move to the next step.
+        // For this demo, we auto-transition if we got a token (simulating clicking a link) or just allow manual entry.
+        setTimeout(() => setMode('reset'), 2000);
+      } else if (mode === 'reset') {
+        await authService.confirmPasswordReset(email, resetToken, newPassword);
+        setMessage("Password updated successfully. Please sign in.");
+        setTimeout(() => setMode('signin'), 2000);
       }
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred.");
@@ -55,7 +64,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   const titles = {
     signin: 'Sign In to Console',
     signup: 'Create Account',
-    forgot: 'Reset Password'
+    forgot: 'Reset Password',
+    reset: 'Set New Password'
   };
 
   return (
@@ -73,7 +83,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
           <h2 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
             {mode === 'signup' && <User size={20} className="text-blue-400" />}
             {mode === 'signin' && <Lock size={20} className="text-blue-400" />}
-            {mode === 'forgot' && <RefreshCw size={20} className="text-blue-400" />}
+            {(mode === 'forgot' || mode === 'reset') && <RefreshCw size={20} className="text-blue-400" />}
             {titles[mode]}
           </h2>
 
@@ -124,7 +134,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
               </div>
             </div>
 
-            {mode !== 'forgot' && (
+            {/* Password Field for Sign In and Sign Up */}
+            {(mode === 'signin' || mode === 'signup') && (
               <div>
                 <label className="block text-xs font-mono text-gray-500 mb-2 uppercase tracking-wider">Password</label>
                 <div className="relative">
@@ -148,6 +159,47 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
               </div>
             )}
 
+            {/* Reset Fields */}
+            {mode === 'reset' && (
+              <>
+                <div>
+                  <label className="block text-xs font-mono text-gray-500 mb-2 uppercase tracking-wider">Reset Token</label>
+                  <div className="relative">
+                    <Key className="absolute left-3 top-3 text-gray-500" size={18} />
+                    <input
+                      type="text"
+                      value={resetToken}
+                      onChange={(e) => setResetToken(e.target.value.toUpperCase())}
+                      className="w-full bg-gray-950 border border-gray-700 rounded-lg py-2.5 pl-10 pr-4 text-gray-200 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all placeholder:text-gray-700"
+                      placeholder="ENTER-TOKEN"
+                      required
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-mono text-gray-500 mb-2 uppercase tracking-wider">New Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 text-gray-500" size={18} />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full bg-gray-950 border border-gray-700 rounded-lg py-2.5 pl-10 pr-10 text-gray-200 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all placeholder:text-gray-700"
+                      placeholder="New secure password"
+                      required
+                    />
+                     <button 
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-3 text-gray-500 hover:text-gray-300"
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
             <button
               type="submit"
               disabled={isLoading}
@@ -157,7 +209,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                 <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  {mode === 'forgot' ? 'Send Reset Link' : mode === 'signup' ? 'Create Account' : 'Sign In'}
+                  {mode === 'forgot' ? 'Request Reset' : mode === 'reset' ? 'Update Password' : mode === 'signup' ? 'Create Account' : 'Sign In'}
                   <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                 </>
               )}
@@ -176,7 +228,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                 <span className="text-gray-600">Already have an account? <button onClick={() => setMode('signin')} className="text-blue-400 hover:text-blue-300 font-medium">Sign In</button></span>
              )}
 
-             {mode === 'forgot' && (
+             {(mode === 'forgot' || mode === 'reset') && (
                 <button onClick={() => setMode('signin')} className="text-gray-400 hover:text-white transition-colors">Back to Sign In</button>
              )}
           </div>
