@@ -1,11 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { ProjectTemplate, UserProfile, RiskLevel, TargetEnvironment } from '../types';
+import { ProjectTemplate, UserProfile, RiskLevel } from '../types';
 import { PROJECT_TEMPLATES } from '../constants';
 import { 
   User, Code, Shield, Zap, CheckCircle2, 
   ArrowRight, ArrowLeft, ShieldCheck, 
   Layout, Briefcase, Settings, Cpu, BarChart,
-  Lock, Activity, Globe
+  Lock, Activity, Globe, Database, Server,
+  FileText, Search, GitBranch, Terminal,
+  Layers, Key, Truck, TestTube
 } from 'lucide-react';
 
 interface OnboardingProps {
@@ -14,23 +16,29 @@ interface OnboardingProps {
 }
 
 const ROLES = [
-  { id: 'engineer', label: 'Engineer', icon: Code, desc: 'Technical implementation focus' },
-  { id: 'product', label: 'Product', icon: Layout, desc: 'Feature & UX strategy focus' },
-  { id: 'ops', label: 'Ops', icon: Settings, desc: 'Infrastructure & scaling focus' },
-  { id: 'exec', label: 'Executive', icon: Briefcase, desc: 'ROI & strategy focus' },
+  { id: 'engineer', label: 'Engineer', icon: Code, desc: 'Implementation' },
+  { id: 'architect', label: 'Architect', icon: Layers, desc: 'System Design' },
+  { id: 'product', label: 'Product', icon: Layout, desc: 'Strategy' },
+  { id: 'security', label: 'Security', icon: Shield, desc: 'AppSec' },
+  { id: 'ops', label: 'Ops', icon: Settings, desc: 'Infrastructure' },
+  { id: 'data', label: 'Data Sci', icon: BarChart, desc: 'Analytics' },
+  { id: 'qa', label: 'QA / SDET', icon: TestTube, desc: 'Quality' },
+  { id: 'exec', label: 'Executive', icon: Briefcase, desc: 'ROI' },
 ];
 
 const TASKS = [
-  { id: 'codegen', label: 'CodeGen', desc: 'Producing production code' },
-  { id: 'analysis', label: 'Analysis', desc: 'System audits & deep dives' },
-  { id: 'writing', label: 'Writing', desc: 'Documentation & strategy' },
-  { id: 'agentic', label: 'Agentic Workflow', desc: 'Autonomous task chains' },
-];
-
-const ENVIRONMENTS: { id: TargetEnvironment; label: string }[] = [
-  { id: 'Production', label: 'Production' },
-  { id: 'Staging', label: 'Staging' },
-  { id: 'Experimentation', label: 'Experimentation' },
+  { id: 'codegen', label: 'CodeGen', icon: Terminal, desc: 'Production Code' },
+  { id: 'refactoring', label: 'Refactoring', icon: GitBranch, desc: 'Cleanup' },
+  { id: 'api', label: 'API Design', icon: Globe, desc: 'Interfaces' },
+  { id: 'db', label: 'DB Schema', icon: Database, desc: 'Data Models' },
+  { id: 'threat', label: 'Threat Model', icon: Lock, desc: 'Security Review' },
+  { id: 'cicd', label: 'CI/CD', icon: Server, desc: 'Pipelines' },
+  { id: 'perf', label: 'Perf Tuning', icon: Activity, desc: 'Optimization' },
+  { id: 'migration', label: 'Migration', icon: Truck, desc: 'Platform Shift' },
+  { id: 'tests', label: 'Test Suites', icon: CheckCircle2, desc: 'Coverage' },
+  { id: 'analysis', label: 'Analysis', icon: Search, desc: 'Auditing' },
+  { id: 'writing', label: 'Docs', icon: FileText, desc: 'Technical Writing' },
+  { id: 'agentic', label: 'Agentic', icon: Zap, desc: 'Workflows' },
 ];
 
 export const Onboarding: React.FC<OnboardingProps> = ({ user, onComplete }) => {
@@ -38,9 +46,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onComplete }) => {
   const [selection, setSelection] = useState({
     role: '',
     task: '',
-    environment: 'Staging' as TargetEnvironment,
     risk: 'Medium' as RiskLevel,
-    compliance: ['Internal-only'],
     model: 'gemini-3-pro-preview',
     templateId: ''
   });
@@ -50,11 +56,14 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onComplete }) => {
 
   // STEP 2: Infer Risk Level
   const inferredRisk = useMemo(() => {
-    if (selection.role === 'engineer' && selection.task === 'codegen') return 'High';
-    if (selection.environment === 'Production') return 'High';
-    if (selection.task === 'analysis') return 'Medium';
-    return 'Low';
-  }, [selection.role, selection.task, selection.environment]);
+    const highRiskRoles = ['security', 'architect', 'ops'];
+    const highRiskTasks = ['codegen', 'refactoring', 'threat', 'cicd', 'migration'];
+    
+    if (highRiskRoles.includes(selection.role)) return 'High';
+    if (highRiskTasks.includes(selection.task)) return 'High';
+    if (['writing', 'analysis'].includes(selection.task)) return 'Low';
+    return 'Medium';
+  }, [selection.role, selection.task]);
 
   // STEP 3: Recommended Templates
   const recommendedTemplates = PROJECT_TEMPLATES.filter(t => {
@@ -66,60 +75,51 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onComplete }) => {
     switch (step) {
       case 1: // STEP 1 — USER CONTEXT INTAKE
         return (
-          <div className="space-y-6 animate-in slide-in-from-right duration-500">
-            <div className="text-center mb-8">
+          <div className="space-y-6 animate-in slide-in-from-right duration-500 h-[500px] overflow-y-auto custom-scrollbar pr-2">
+            <div className="text-center mb-6">
               <h2 className="text-2xl font-bold text-white mb-2">User Context Intake</h2>
               <p className="text-gray-400">Step 1 — Understand role, domain, and intent</p>
             </div>
             
             <div className="space-y-4">
-              <label className="block text-xs font-mono text-gray-500 uppercase">Primary Role</label>
-              <div className="grid grid-cols-2 gap-3">
+              <label className="block text-xs font-mono text-gray-500 uppercase tracking-widest">Primary Role</label>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {ROLES.map(r => (
                   <button
                     key={r.id}
                     onClick={() => setSelection(prev => ({ ...prev, role: r.id }))}
-                    className={`p-4 rounded-xl border transition-all text-left ${
+                    className={`p-3 rounded-xl border transition-all text-left flex flex-col justify-between h-24 ${
                       selection.role === r.id ? 'bg-blue-900/20 border-blue-500 ring-1 ring-blue-500' : 'bg-gray-800/50 border-gray-700 hover:border-gray-600'
                     }`}
                   >
                     <r.icon size={20} className={selection.role === r.id ? 'text-blue-400' : 'text-gray-500'} />
-                    <p className="mt-2 text-sm font-bold text-white">{r.label}</p>
+                    <div>
+                        <p className={`mt-2 text-xs font-bold ${selection.role === r.id ? 'text-white' : 'text-gray-300'}`}>{r.label}</p>
+                        <p className="text-[9px] text-gray-500 truncate">{r.desc}</p>
+                    </div>
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="space-y-4">
-              <label className="block text-xs font-mono text-gray-500 uppercase">Intended Task</label>
-              <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-4 pb-4">
+              <label className="block text-xs font-mono text-gray-500 uppercase tracking-widest">Intended Task</label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {TASKS.map(t => (
                   <button
                     key={t.id}
                     onClick={() => setSelection(prev => ({ ...prev, task: t.id }))}
-                    className={`p-3 rounded-lg border transition-all text-left ${
+                    className={`p-3 rounded-lg border transition-all text-left flex items-center gap-3 ${
                       selection.task === t.id ? 'bg-blue-900/20 border-blue-500' : 'bg-gray-800/50 border-gray-700 hover:border-gray-600'
                     }`}
                   >
-                    <p className="text-xs font-bold text-white">{t.label}</p>
-                    <p className="text-[10px] text-gray-500">{t.desc}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <label className="block text-xs font-mono text-gray-500 uppercase">Target Environment</label>
-              <div className="flex gap-2">
-                {ENVIRONMENTS.map(e => (
-                  <button
-                    key={e.id}
-                    onClick={() => setSelection(prev => ({ ...prev, environment: e.id }))}
-                    className={`flex-1 py-2 px-3 rounded-lg border text-xs transition-all ${
-                      selection.environment === e.id ? 'bg-blue-600 border-blue-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'
-                    }`}
-                  >
-                    {e.label}
+                    <div className={`p-2 rounded-md ${selection.task === t.id ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-900 text-gray-500'}`}>
+                        <t.icon size={16} />
+                    </div>
+                    <div>
+                        <p className={`text-xs font-bold ${selection.task === t.id ? 'text-white' : 'text-gray-300'}`}>{t.label}</p>
+                        <p className="text-[9px] text-gray-500 truncate w-24">{t.desc}</p>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -131,8 +131,8 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onComplete }) => {
         return (
           <div className="space-y-6 animate-in slide-in-from-right duration-500">
             <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-white mb-2">Domain & Risk Classification</h2>
-              <p className="text-gray-400">Step 2 — Inferring compliance constraints</p>
+              <h2 className="text-2xl font-bold text-white mb-2">Risk Classification</h2>
+              <p className="text-gray-400">Step 2 — Inferring compliance constraints based on context</p>
             </div>
 
             <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-6 space-y-5">
@@ -163,7 +163,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onComplete }) => {
               <div className="pt-4 border-t border-gray-700 flex gap-4">
                  <ShieldCheck className="text-blue-400 shrink-0" size={24} />
                  <p className="text-[11px] text-gray-400 leading-relaxed italic">
-                    "Concierge Protocol: Governance activated for {selection.environment} targeting. Safety gates will be strictly enforced."
+                    "Concierge Protocol: Governance activated for {selection.role} / {selection.task} vector. Safety gates will be strictly enforced."
                  </p>
               </div>
             </div>
@@ -287,8 +287,8 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onComplete }) => {
             <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-6 text-left space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-950 p-3 rounded-lg border border-gray-800">
-                  <p className="text-[10px] text-gray-500 uppercase font-mono">Environment</p>
-                  <p className="text-xs font-bold text-white uppercase">{selection.environment}</p>
+                  <p className="text-[10px] text-gray-500 uppercase font-mono">Primary Role</p>
+                  <p className="text-xs font-bold text-white uppercase">{ROLES.find(r => r.id === selection.role)?.label}</p>
                 </div>
                 <div className="bg-gray-950 p-3 rounded-lg border border-gray-800">
                   <p className="text-[10px] text-gray-500 uppercase font-mono">Risk Profile</p>
@@ -316,12 +316,12 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onComplete }) => {
 
   return (
     <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-6">
-      <div className="w-full max-w-xl relative">
+      <div className="w-full max-w-2xl relative">
         <div className="absolute -top-24 -left-24 h-64 w-64 bg-blue-600/10 blur-[100px] rounded-full"></div>
         <div className="absolute -bottom-24 -right-24 h-64 w-64 bg-purple-600/10 blur-[100px] rounded-full"></div>
 
-        <div className="bg-gray-900 border border-gray-800 rounded-3xl p-8 md:p-10 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-1 flex">
+        <div className="bg-gray-900 border border-gray-800 rounded-3xl p-8 md:p-10 shadow-2xl relative overflow-hidden flex flex-col h-[650px]">
+          <div className="absolute top-0 left-0 right-0 h-1 flex shrink-0">
             {[1, 2, 3, 4, 5, 6].map(i => (
               <div 
                 key={i} 
@@ -330,11 +330,11 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, onComplete }) => {
             ))}
           </div>
 
-          <div className="min-h-[440px]">
+          <div className="flex-1 overflow-hidden py-4">
             {renderStep()}
           </div>
 
-          <div className="mt-10 flex gap-4">
+          <div className="mt-6 flex gap-4 shrink-0">
             {step > 1 && (
               <button
                 onClick={prevStep}
