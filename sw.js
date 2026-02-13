@@ -10,15 +10,38 @@ if (workbox) {
   const { CacheableResponsePlugin } = workbox.cacheableResponse;
   const { ExpirationPlugin } = workbox.expiration;
 
-  // 1. Static Assets: Stale-While-Revalidate
+  // 1. Security Critical Endpoints: Network Only
+  // PRIORITY: Sensitive endpoints like authentication or moderation must be explicitly excluded from caching.
+  // Defined first to ensure precedence over other routes.
+  registerRoute(
+    ({ url }) => url.pathname.includes('/auth') || url.pathname.includes('/moderation'),
+    new NetworkOnly()
+  );
+
+  // 2. Dynamic API Content: Network-First
+  // "Use a 'NetworkFirst' strategy, only caching successful responses."
+  registerRoute(
+    ({ url }) => url.pathname.startsWith('/api/'),
+    new NetworkFirst({
+      cacheName: 'dynamic-content',
+      networkTimeoutSeconds: 3, // Fallback to cache if network takes longer than 3s
+      plugins: [
+        new CacheableResponsePlugin({
+          statuses: [200], // Strictly only cache HTTP 200 OK
+        }),
+        new ExpirationPlugin({
+          maxEntries: 50,
+          maxAgeSeconds: 24 * 60 * 60, // 1 Day
+        }),
+      ],
+    })
+  );
+
+  // 3. Static Assets: Stale-While-Revalidate
   // Serves from cache for speed, updates in background.
   registerRoute(
     ({ request }) => 
-      request.destination === 'style' || 
-      request.destination === 'script' || 
-      request.destination === 'worker' ||
-      request.destination === 'font' ||
-      request.destination === 'image',
+      ['style', 'script', 'worker', 'font', 'image'].includes(request.destination),
     new StaleWhileRevalidate({
       cacheName: 'static-resources',
       plugins: [
@@ -33,7 +56,7 @@ if (workbox) {
     })
   );
 
-  // 2. App Shell / Navigation: Stale-While-Revalidate
+  // 4. App Shell / Navigation: Stale-While-Revalidate
   registerRoute(
     ({ request }) => request.mode === 'navigate',
     new StaleWhileRevalidate({
@@ -44,32 +67,6 @@ if (workbox) {
         }),
       ],
     })
-  );
-
-  // 3. Dynamic API Content: Network-First
-  // Tries network to get fresh data. Falls back to cache if offline.
-  // ONLY caches successful responses (status 200).
-  registerRoute(
-    ({ url }) => url.pathname.startsWith('/api/v1/content'),
-    new NetworkFirst({
-      cacheName: 'dynamic-content',
-      plugins: [
-        new CacheableResponsePlugin({
-          statuses: [200],
-        }),
-        new ExpirationPlugin({
-          maxEntries: 20,
-          maxAgeSeconds: 24 * 60 * 60, // 1 Day
-        }),
-      ],
-    })
-  );
-
-  // 4. Security Critical Endpoints: Network Only
-  // Authentication and Moderation actions must never be served from a stale cache.
-  registerRoute(
-    ({ url }) => url.pathname.includes('/auth') || url.pathname.includes('/moderation'),
-    new NetworkOnly()
   );
 
   // Offline Fallback for Navigation

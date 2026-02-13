@@ -78,7 +78,7 @@ export const ModerationQueue: React.FC = () => {
                   <th className="px-8 py-5">Event Timestamp</th>
                   <th className="px-8 py-5">Entity ID</th>
                   <th className="px-8 py-5">Safety Action</th>
-                  <th className="px-8 py-5">Moderator</th>
+                  <th className="px-8 py-5">Actor / System</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800">
@@ -92,13 +92,17 @@ export const ModerationQueue: React.FC = () => {
                       <td className="px-8 py-5 text-gray-400 font-mono text-xs">{new Date(log.timestamp).toLocaleString()}</td>
                       <td className="px-8 py-5 text-gray-300 font-mono text-xs">{log.itemId}</td>
                       <td className="px-8 py-5">
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${log.action === 'Approved' ? 'bg-green-900/20 text-green-400 border-green-900/50' : 'bg-red-900/20 text-red-400 border-red-900/50'}`}>
-                          {log.action}
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${
+                          log.action === 'Approved' ? 'bg-green-900/20 text-green-400 border-green-900/50' : 
+                          log.action === 'Rejected' ? 'bg-red-900/20 text-red-400 border-red-900/50' :
+                          'bg-indigo-900/20 text-indigo-400 border-indigo-900/50'
+                        }`}>
+                          {log.action.replace('_', ' ')}
                         </span>
                       </td>
                       <td className="px-8 py-5 text-gray-500 font-mono text-xs flex items-center gap-2">
-                        <User size={12} />
-                        {log.adminId}
+                         {log.action === 'PII_MASKED' ? <ShieldAlert size={12} className="text-indigo-400" /> : <User size={12} />}
+                         {log.adminId}
                       </td>
                     </tr>
                   ))

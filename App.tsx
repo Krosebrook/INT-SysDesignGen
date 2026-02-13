@@ -12,7 +12,7 @@ import { ModerationQueue } from './components/ModerationQueue';
 import { ProfileSettings } from './components/ProfileSettings';
 import { Onboarding } from './components/Onboarding';
 import { DocumentationView } from './components/DocumentationView';
-import { Sparkles, Trash2, Cpu, Settings2, ShieldCheck, AlertCircle, HelpCircle, Menu, Loader2, BarChart3, Download } from 'lucide-react';
+import { Sparkles, Trash2, Cpu, Settings2, ShieldCheck, AlertCircle, HelpCircle, Menu, Loader2, BarChart3, Download, X, Wifi, Smartphone, Zap, Monitor } from 'lucide-react';
 
 const DEFAULT_FILTERS = Object.values(RealityFilterType);
 
@@ -24,6 +24,7 @@ const App: React.FC = () => {
 
   // PWA Install State
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallModal, setShowInstallModal] = useState(false);
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -35,19 +36,26 @@ const App: React.FC = () => {
   }, []);
 
   const handleInstallClick = () => {
+    setShowInstallModal(true);
+  };
+
+  const handleConfirmInstall = () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
       deferredPrompt.userChoice.then((choiceResult: any) => {
         if (choiceResult.outcome === 'accepted') {
           setDeferredPrompt(null);
         }
+        setShowInstallModal(false);
       });
     }
   };
 
   // Architect State
-  const [task, setTask] = useState('');
-  const [context, setContext] = useState('');
+  // Initialize from localStorage to persist data across refreshes
+  const [task, setTask] = useState(() => localStorage.getItem('se_architect_task') || '');
+  const [context, setContext] = useState(() => localStorage.getItem('se_architect_context') || '');
+  
   const [activeFilters, setActiveFilters] = useState<RealityFilterType[]>(DEFAULT_FILTERS);
   const [generatedContent, setGeneratedContent] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -57,6 +65,15 @@ const App: React.FC = () => {
     { id: 'ux', name: 'UX Heuristics', status: 'Pending', score: 0 },
     { id: 'perf', name: 'Performance Budget', status: 'Pending', score: 0 },
   ]);
+
+  // Persist Task and Context on change
+  useEffect(() => {
+    localStorage.setItem('se_architect_task', task);
+  }, [task]);
+
+  useEffect(() => {
+    localStorage.setItem('se_architect_context', context);
+  }, [context]);
 
   useEffect(() => {
     // Check for existing session
@@ -175,7 +192,7 @@ const App: React.FC = () => {
              {deferredPrompt && (
                 <button 
                   onClick={handleInstallClick}
-                  className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-full transition-all"
+                  className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-full transition-all shadow-lg shadow-blue-900/20"
                 >
                   <Download size={14} />
                   Install App
@@ -300,6 +317,69 @@ const App: React.FC = () => {
           )}
         </main>
       </div>
+
+      {/* PWA Install Modal */}
+      {showInstallModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-[#0f172a] border border-gray-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl relative animate-in zoom-in-95 duration-300 ring-1 ring-white/10">
+            <button 
+              onClick={() => setShowInstallModal(false)}
+              className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white hover:bg-gray-800 rounded-full transition-colors"
+            >
+              <X size={18} />
+            </button>
+            
+            <div className="flex flex-col items-center text-center mb-8 pt-2">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-900/40 mb-6 ring-1 ring-white/20 transform -rotate-3 hover:rotate-0 transition-transform duration-500">
+                <Download size={32} className="text-white drop-shadow-md" />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-2 tracking-tight">Install Architect</h3>
+              <p className="text-gray-400 text-sm leading-relaxed px-2">
+                Enhance your experience with native performance and offline capabilities.
+              </p>
+            </div>
+
+            <div className="space-y-3 mb-8">
+              <div className="flex items-start gap-4 p-3 rounded-xl hover:bg-gray-800/50 transition-colors group">
+                 <div className="p-2.5 bg-green-500/10 rounded-lg shrink-0 border border-green-500/20 group-hover:border-green-500/40 transition-colors"><Wifi size={20} className="text-green-400" /></div>
+                 <div className="text-left">
+                   <h4 className="text-sm font-bold text-gray-200">Offline Access</h4>
+                   <p className="text-xs text-gray-500 leading-snug">Access templates and view history without an internet connection.</p>
+                 </div>
+              </div>
+              <div className="flex items-start gap-4 p-3 rounded-xl hover:bg-gray-800/50 transition-colors group">
+                 <div className="p-2.5 bg-purple-500/10 rounded-lg shrink-0 border border-purple-500/20 group-hover:border-purple-500/40 transition-colors"><Monitor size={20} className="text-purple-400" /></div>
+                 <div className="text-left">
+                   <h4 className="text-sm font-bold text-gray-200">Home Screen Icon</h4>
+                   <p className="text-xs text-gray-500 leading-snug">Launch directly from your device home screen for quick access.</p>
+                 </div>
+              </div>
+              <div className="flex items-start gap-4 p-3 rounded-xl hover:bg-gray-800/50 transition-colors group">
+                 <div className="p-2.5 bg-yellow-500/10 rounded-lg shrink-0 border border-yellow-500/20 group-hover:border-yellow-500/40 transition-colors"><Zap size={20} className="text-yellow-400" /></div>
+                 <div className="text-left">
+                   <h4 className="text-sm font-bold text-gray-200">Improved Performance</h4>
+                   <p className="text-xs text-gray-500 leading-snug">Faster load times with cached assets and optimized navigation.</p>
+                 </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button 
+                onClick={() => setShowInstallModal(false)}
+                className="px-4 py-3 rounded-xl border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors font-medium text-sm"
+              >
+                Maybe Later
+              </button>
+              <button 
+                onClick={handleConfirmInstall}
+                className="px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-lg shadow-blue-900/20 hover:shadow-blue-900/40 transition-all transform active:scale-95"
+              >
+                Install Now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
